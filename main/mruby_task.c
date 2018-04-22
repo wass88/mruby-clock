@@ -1,3 +1,78 @@
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_system.h"
+#include "esp_log.h"
+#include "driver/gpio.h"
+
+#include "mruby.h"
+#include "mruby/irep.h"
+#include "mruby/compile.h"
+#include "mruby/error.h"
+#include "mruby/string.h"
+#include "mruby/value.h"
+
+#include "example_mrb.h"
+#include "./font.h"
+#include "./fonts.h"
+
+
+#define TAG "mruby_task"
+
+#define R0_PIN 21
+#define G0_PIN 23
+#define B0_PIN 19
+
+#define R1_PIN 18
+#define G1_PIN 22
+#define B1_PIN 17
+
+#define A_PIN 13
+#define B_PIN 25
+#define C_PIN 14
+#define D_PIN 33
+
+#define CLK_PIN 27
+#define STB_PIN 32
+#define OE_PIN 26
+
+#define TONE 8
+
+#define LEN(a) sizeof(a) / sizeof(a[0])
+
+int output_pins[] = {
+    R0_PIN, G0_PIN, B0_PIN,
+    R1_PIN, G1_PIN, B1_PIN,
+    A_PIN, B_PIN, C_PIN, D_PIN,
+    CLK_PIN, STB_PIN, OE_PIN
+};
+
+bool gpio_output(int pin) {
+    gpio_config_t io_conf;
+    //disable interrupt
+    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
+    //set as output mode
+    io_conf.mode = GPIO_MODE_OUTPUT;
+    //bit mask of the pins that you want to set,e.g.GPIO18/19
+    io_conf.pin_bit_mask = 1ULL << pin;
+    //disable pull-down mode
+    io_conf.pull_down_en = 0;
+    //disable pull-up mode
+    io_conf.pull_up_en = 0;
+    //configure GPIO with the given settings
+   return gpio_config(&io_conf) == ESP_OK;
+}
+
+
+void led_init(void) {
+    for (int i = 0; i < LEN(output_pins); i++) {
+        gpio_output(output_pins[i]);
+        gpio_set_level(output_pins[i], 0);
+    }
+}
+
 #define SIZE 32
 #define CHAN 3
 #define BSIZE SIZE*SIZE*CHAN
@@ -40,35 +115,39 @@ void b_line(int x0, int y0, int x1, int y1, int r, int g, int b) {
   }
 }
 
-/*
-00010203
-10    13
-20    23
-30313233
-40    43
-50    53
-60616263
-*/
-int numbers[20][40] = {
-    {0,1, 0,2, 1,3, 2,3, 4,3, 5,3, 1,0, 2,0, 4,0, 5,0, 6,1, 6,2, -1},
-    {1,3, 2,3, 4,3, 5,3, -1},
-    {0,1, 0,2, 1,3, 2,3, 3,2, 3,1, 4,0, 5,0, 6,1, 6,2, -1},
-    {0,1, 0,2, 1,3, 2,3, 3,2, 3,1, 4,3, 5,3, 6,1, 6,2, -1},
-    {1,0, 2,0, 1,3, 2,3, 4,3, 5,3, 3,1, 3,2, -1},
-    {1,0, 2,0, 3,1, 3,2, 0,1, 0,2, 4,3, 5,3, 6,1, 6,2, -1},
-    {1,0, 2,0, 3,1, 3,2, 0,1, 0,2, 4,3, 5,3, 4,0, 5,0, 6,1, 6,2, -1},
-    {1,0, 2,0, 1,3, 2,3, 4,3, 5,3, 0,1, 0,2, -1},
-    {0,1, 0,2, 1,3, 2,3, 3,1, 3,2, 4,3, 5,3, 1,0, 2,0, 4,0, 5,0, 6,1, 6,2, -1},
-    {1,0, 2,0, 3,1, 3,2, 0,1, 0,2, 4,3, 5,3, 6,1, 6,2, 1,3, 2,3, -1},
-    {1,1, 5,1, -1}
-};
+int find_index(int len, const unsigned short *idxs, unsigned short chr) {
+  int l = -1, r = len;
+  while(r - l > 1) {
+    int m = (r + l) / 2;
+    if (chr <= idxs[m]) r = m;
+    else l = m;
+  }
+  if (chr != idxs[r]) return -1;
+  return r;
+}
 
-void print_number(int y, int x, int c) {
-    int *number = numbers[c];
-    for (int t = 0; t < 40; t+=2) {
-        if (number[t+1] < 0) break;
-        r_buf[y+number[t]][x+number[t+1]]= 10;
+void b_char(int x, int y, short chr, int r, int g, int b, const struct bitmap_font *font){
+  int idx = find_index(font->Chars, font->Index, chr);
+  if(idx < 0) { idx = 1; }
+  for (int i = 0; i < font->Height; i++) {
+    int line = font->Bitmap[font->Height * idx + i];
+    if (y + i < 0 || y + i >= SIZE) continue;
+    for (int j = 0; j < font->Width; j++) {
+      if (x + j >= 0 && x + j < SIZE && (line & (1 << (7 - j))) > 0) {
+        b_set(x + j, y + i, r, g, b);
+      }
     }
+  }
+}
+
+void b_text(int x, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+  int w = font->Width + 1;
+  int start = (x < 0) ? - x / w : 0;
+  int len = strlen(str);
+  for (int i = 0; x + (start + i) * w <= SIZE + w &&
+                  start + i < len; i++) {
+    b_char(x + (start + i) * w, y, str[start + i], r, g, b, font);
+  }
 }
 
 static mrb_value ledflash(mrb_state* mrb, mrb_value self) { 
@@ -93,6 +172,19 @@ static mrb_value ledline(mrb_state* mrb, mrb_value self) {
   b_line(x0, y0, x1, y1, r, g, b);
   return self;
 }
+static mrb_value ledchar(mrb_state* mrb, mrb_value self) { 
+  mrb_int x, y, c, r, g, b;
+  mrb_get_args(mrb, "iiiiii", &x, &y, &c, &r, &g, &b);
+  b_char(x, y, c, r, g, b, &font_tom_thumb);
+  return self;
+}
+static mrb_value ledtext(mrb_state* mrb, mrb_value self) { 
+  mrb_int x, y, r, g, b;
+  char *s;
+  mrb_get_args(mrb, "iiziii", &x, &y, &s, &r, &g, &b);
+  b_text(x, y, s, r, g, b, &font_tom_thumb);
+  return self;
+}
 
 void mruby_task(void *pvParameter) {
   mrb_state *mrb = mrb_open();
@@ -102,6 +194,8 @@ void mruby_task(void *pvParameter) {
   mrb_define_class_method(mrb, Led, "clear", ledclear, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Led, "set", ledset, MRB_ARGS_REQ(5));
   mrb_define_class_method(mrb, Led, "line", ledline, MRB_ARGS_REQ(7));
+  mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(6));
+  mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(6));
 
   mrbc_context *context = mrbc_context_new(mrb);
   int ai = mrb_gc_arena_save(mrb);

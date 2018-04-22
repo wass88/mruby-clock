@@ -15,56 +15,10 @@
 #include "esp_types.h"
 #include "esp_spi_flash.h"
 
-#include "mruby.h"
-#include "mruby/irep.h"
-#include "mruby/compile.h"
-#include "mruby/error.h"
-#include "mruby/string.h"
-#include "mruby/value.h"
-
-/* required arguments */
-#define ARGS_REQ(n)     (((n)&0x1f) << 19)
-/* optional arguments */
-#define ARGS_OPT(n)     (((n)&0x1f) << 14)
-/* rest argument */
-#define ARGS_REST()     (1 << 13)
-/* required arguments after rest */
-#define ARGS_POST(n)    (((n)&0x1f) << 8)
-/* keyword arguments (n of keys, kdict) */
-#define ARGS_KEY(n1,n2) ((((n1)&0x1f) << 3) | ((n2)?(1<<2):0))
-/* block argument */
-#define ARGS_BLOCK()    (1 << 1)
- 
-/* accept any number of arguments */
-#define ARGS_ANY()      ARGS_REST()
-/* accept no arguments */
-#define ARGS_NONE()     0
-
-
-#include "example_mrb.h"
-
-#define TAG "mruby_task"
-
-#include "./wifi.h"
-#include "./server.h"
-#include "./sntp.h"
+//#include "./wifi.h"
+//#include "./server.h"
+//#include "./sntp.h"
 #include "./mruby_task.h"
-
-bool gpio_output(int pin) {
-    gpio_config_t io_conf;
-    //disable interrupt
-    io_conf.intr_type = GPIO_PIN_INTR_DISABLE;
-    //set as output mode
-    io_conf.mode = GPIO_MODE_OUTPUT;
-    //bit mask of the pins that you want to set,e.g.GPIO18/19
-    io_conf.pin_bit_mask = 1ULL << pin;
-    //disable pull-down mode
-    io_conf.pull_down_en = 0;
-    //disable pull-up mode
-    io_conf.pull_up_en = 0;
-    //configure GPIO with the given settings
-   return gpio_config(&io_conf) == ESP_OK;
-}
 
 void info()
 {
@@ -84,41 +38,6 @@ void info()
             (chip_info.features & CHIP_FEATURE_EMB_FLASH) ? "embedded" : "external");
 
     printf("PERIOD_MS: %d\n", portTICK_PERIOD_MS);
-}
-
-#define R0_PIN 21
-#define G0_PIN 23
-#define B0_PIN 19
-
-#define R1_PIN 18
-#define G1_PIN 22
-#define B1_PIN 17
-
-#define A_PIN 13
-#define B_PIN 25
-#define C_PIN 14
-#define D_PIN 33
-
-#define CLK_PIN 27
-#define STB_PIN 32
-#define OE_PIN 26
-
-#define TONE 8
-
-#define LEN(a) sizeof(a) / sizeof(a[0])
-
-int output_pins[] = {
-    R0_PIN, G0_PIN, B0_PIN,
-    R1_PIN, G1_PIN, B1_PIN,
-    A_PIN, B_PIN, C_PIN, D_PIN,
-    CLK_PIN, STB_PIN, OE_PIN
-};
-
-void led_init() {
-    for (int i = 0; i < LEN(output_pins); i++) {
-        gpio_output(output_pins[i]);
-        gpio_set_level(output_pins[i], 0);
-    }
 }
 
 /*

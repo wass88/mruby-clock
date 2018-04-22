@@ -59,4 +59,37 @@ MRuby::CrossBuild.new('esp32') do |conf|
   conf.gem :core => "mruby-compiler"
   conf.gem :github => "mruby-esp32/mruby-esp32-system"
   conf.gem :github => "mruby-esp32/mruby-esp32-wifi"
+  conf.gem :core => "mruby-numeric-ext"
+
+  #conf.gem :core => "mruby-math"
+  #conf.gem :core => "mruby-time"
+  #conf.gem :core => "mruby-string-ext"
+  #conf.gem :core => "mruby-random"
+  #conf.gem :core => "mruby-bin-mirb"
+
+  #mruby-struct - standard Struct class
+  #mruby-compar-ext - Enumerable module extension
+  #mruby-enum-ext - Enumerable module extension
+  #mruby-numeric-ext - Numeric class extension
+  #mruby-array-ext - Array class extension
+  #mruby-hash-ext - Hash class extension
+  #mruby-range-ext - Range class extension
+  #mruby-proc-ext - Proc class extension
+  #mruby-symbol-ext - Symbol class extension
+  #mruby-object-ext - Object class extension
+  #mruby-objectspace - ObjectSpace class
+  #mruby-fiber - Fiber class
+  #mruby-enumerator - Enumerator class
+  #mruby-enum-lazy - Enumerator::Lazy class
+  #mruby-toplevel-ext - toplevel object (main) methods extension
+  #mruby-compiler - mruby compiler library
+  #  - Binaries: mirb
+  #mruby-error - extensional error handling
+  #mruby-bin-mruby - mruby command
+  #  - Binaries: mruby
+  #mruby-bin-strip - irep dump debug section remover command
+  #  - Binaries: mruby-strip
+  #mruby-kernel-ext - Kernel module extension
+  #mruby-class-ext - class/module extension
+  #mruby-bin-mrbc - mruby compiler executable
 end

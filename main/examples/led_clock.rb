@@ -19,6 +19,8 @@ end
   lines << aline
   aline = succ_line(aline)
 }
+str1 = "Hello, World 1234567890! Welcome to KMC!"
+str2 = "This font is hard to read..."
 while true do
   Led::clear 0
   lines.each {|l|
@@ -27,10 +29,11 @@ while true do
   lines.shift()
   puts(lines.size())
   lines << succ_line(lines[-1])
-
+  Led::text(32-(i % (str1.size * 4 + 30)), 20, str1, 0, 5, 5)
+  Led::text(32-(i % (str2.size * 4 + 30)), 10, str2, 5, 0, 5)
   Led::flash
 
-  i = (i + 1) % 32
+  i += 1
   mem = ESP32::System.available_memory() / 1000
   puts "Free heap: #{mem}K"
   ESP32::System.delay(100)
