@@ -82565,7 +82565,7 @@ static const unsigned short __font_index__[] = {
 
 	/// bitmap font structure
 const struct bitmap_font font_k6x8 = {
-	.Width = 5, .Height = 8,
+	.Width = 6, .Height = 8,
 	.Chars = 6879,
 	.Widths = __font_widths__,
 	.Index = __font_index__,

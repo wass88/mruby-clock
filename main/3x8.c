@@ -1913,7 +1913,7 @@ static const unsigned short __font_index__[] = {
 
 	/// bitmap font structure
 const struct bitmap_font font_3x8 = {
-	.Width = 3, .Height = 8,
+	.Width = 4, .Height = 8,
 	.Chars = 158,
 	.Widths = __font_widths__,
 	.Index = __font_index__,

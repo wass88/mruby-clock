@@ -15,9 +15,9 @@
 #include "esp_types.h"
 #include "esp_spi_flash.h"
 
-//#include "./wifi.h"
+#include "./wifi.h"
 //#include "./server.h"
-//#include "./sntp.h"
+#include "./sntp.h"
 #include "./mruby_task.h"
 
 void info()
@@ -75,20 +75,18 @@ void app_main(void)
     ESP_ERROR_CHECK(nvs_flash_init());
     info();
 
-//    initialise_wifi();
-/*
+    initialise_wifi();
+
     time_t now;
     struct tm time_info;
     get_time(&now, &time_info);
     char strtime[64];
     strftime(strtime, sizeof(strtime), "%F T %T", &time_info);
-    printf("%s", strtime);
-    */
+    printf("%s\n", strtime);
 
     led_init();
     xTaskCreatePinnedToCore(led_print, "led_print", 2048, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(mruby_task, "mruby_task", 32768, NULL, 5, NULL, 0);
-//  xTaskCreatePinnedToCore(update_buf, "update_buf", 2048, NULL, 5, NULL, 0);
 //  xTaskCreatePinnedToCore(http_server, "http_server", 2048, NULL, 5, NULL, 0);
 
     //printf("Restarting now.\n");

@@ -2047,7 +2047,7 @@ static const unsigned short __font_index__[] = {
 
 	/// bitmap font structure
 const struct bitmap_font font_tom_thumb = {
-	.Width = 3, .Height = 6,
+	.Width = 4, .Height = 6,
 	.Chars = 203,
 	.Widths = __font_widths__,
 	.Index = __font_index__,

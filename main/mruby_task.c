@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_types.h"
 #include "esp_system.h"
 #include "esp_log.h"
 #include "driver/gpio.h"
@@ -17,7 +19,7 @@
 #include "example_mrb.h"
 #include "./font.h"
 #include "./fonts.h"
-
+#include "./sntp.h"
 
 #define TAG "mruby_task"
 
@@ -65,13 +67,50 @@ bool gpio_output(int pin) {
    return gpio_config(&io_conf) == ESP_OK;
 }
 
-
 void led_init(void) {
     for (int i = 0; i < LEN(output_pins); i++) {
         gpio_output(output_pins[i]);
         gpio_set_level(output_pins[i], 0);
     }
 }
+
+
+time_t time_now_ = -1;
+struct tm time_info;
+static mrb_value time_update(mrb_state* mrb, mrb_value self) { 
+  get_time(&time_now_, &time_info);
+  return self;
+}
+
+static mrb_value time_now(mrb_state* mrb, mrb_value self) { 
+  return mrb_fixnum_value(time_now_);
+}
+
+static mrb_value time_str(mrb_state* mrb, mrb_value self) { 
+  char *s;
+  mrb_get_args(mrb, "z", &s);
+  const int max_res = 100;
+  char res[max_res];
+  strftime(res, max_res, s, &time_info);
+  return mrb_str_new_cstr(mrb, res); 
+}
+
+static mrb_value time_num(mrb_state* mrb, mrb_value self) { 
+  int i;
+  mrb_get_args(mrb, "i", &i);
+  switch (i){
+    case 0: return mrb_fixnum_value(time_info.tm_year);
+    case 1: return mrb_fixnum_value(time_info.tm_mon);
+    case 2: return mrb_fixnum_value(time_info.tm_wday);
+    case 3: return mrb_fixnum_value(time_info.tm_hour);
+    case 4: return mrb_fixnum_value(time_info.tm_min);
+    case 5: return mrb_fixnum_value(time_info.tm_sec);
+  }
+  char * msg = "Out of index";
+  mrb_f_raise(mrb, mrb_str_new_cstr(mrb, msg));
+  return mrb_nil_value();
+}
+
 
 #define SIZE 32
 #define CHAN 3
@@ -80,6 +119,10 @@ void led_init(void) {
 int buffer[BSIZE];
 int display[BSIZE];
 int ac(int x, int y, int c) { return y * (SIZE * CHAN) + x * (CHAN) + c; }
+
+struct bitmap_font const * const font_list[] =  {
+  &font_tom_thumb, &font_5x7, &font_6x9, &font_3x8
+};
 
 void b_flash() {
   memcpy(display, buffer, BSIZE * sizeof(int));
@@ -122,7 +165,7 @@ int find_index(int len, const unsigned short *idxs, unsigned short chr) {
     if (chr <= idxs[m]) r = m;
     else l = m;
   }
-  if (chr != idxs[r]) return -1;
+  if (r < 0 || r >= len || chr != idxs[r]) return -1;
   return r;
 }
 
@@ -141,7 +184,7 @@ void b_char(int x, int y, short chr, int r, int g, int b, const struct bitmap_fo
 }
 
 void b_text(int x, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
-  int w = font->Width + 1;
+  int w = font->Width;
   int start = (x < 0) ? - x / w : 0;
   int len = strlen(str);
   for (int i = 0; x + (start + i) * w <= SIZE + w &&
@@ -150,6 +193,27 @@ void b_text(int x, int y, char *str, int r, int g, int b, const struct bitmap_fo
   }
 }
 
+void b_banner(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+  int len = strlen(str);
+  int period = (len - 1) * font->Width + SIZE + 1;
+  b_text(32 - ((t / speed) % period), y, str, r, g, b, font);
+}
+
+int p_r = TONE, p_g = TONE, p_b = TONE;
+struct bitmap_font const * p_font = &font_tom_thumb;
+
+static mrb_value ledcolor(mrb_state* mrb, mrb_value self) { 
+  mrb_int r, g, b;
+  mrb_get_args(mrb, "iii", &r, &g, &b);
+  p_r = r; p_g = g; p_b = b;
+  return self;
+}
+static mrb_value ledfont(mrb_state* mrb, mrb_value self) { 
+  mrb_int f;
+  mrb_get_args(mrb, "i", &f);
+  p_font = font_list[f];
+  return self;
+}
 static mrb_value ledflash(mrb_state* mrb, mrb_value self) { 
   b_flash();
   return self;
@@ -161,28 +225,35 @@ static mrb_value ledclear(mrb_state* mrb, mrb_value self) {
   return self;
 }
 static mrb_value ledset(mrb_state* mrb, mrb_value self) { 
-  mrb_int x, y, r, g, b;
-  mrb_get_args(mrb, "iiiii", &x, &y, &r, &g, &b);
-  b_set(x, y, r, g, b);
+  mrb_int x, y;
+  mrb_get_args(mrb, "ii", &x, &y);
+  b_set(x, y, p_r, p_g, p_b);
   return self;
 }
 static mrb_value ledline(mrb_state* mrb, mrb_value self) { 
-  mrb_int x0, y0, x1, y1, r, g, b;
-  mrb_get_args(mrb, "iiiiiii", &x0, &y0, &x1, &y1, &r, &g, &b);
-  b_line(x0, y0, x1, y1, r, g, b);
+  mrb_int x0, y0, x1, y1;
+  mrb_get_args(mrb, "iiii", &x0, &y0, &x1, &y1);
+  b_line(x0, y0, x1, y1, p_r, p_g, p_b);
   return self;
 }
 static mrb_value ledchar(mrb_state* mrb, mrb_value self) { 
-  mrb_int x, y, c, r, g, b;
-  mrb_get_args(mrb, "iiiiii", &x, &y, &c, &r, &g, &b);
-  b_char(x, y, c, r, g, b, &font_tom_thumb);
+  mrb_int x, y, c;
+  mrb_get_args(mrb, "iii", &x, &y, &c);
+  b_char(x, y, c, p_r, p_g, p_b, p_font);
   return self;
 }
 static mrb_value ledtext(mrb_state* mrb, mrb_value self) { 
-  mrb_int x, y, r, g, b;
+  mrb_int x, y;
   char *s;
-  mrb_get_args(mrb, "iiziii", &x, &y, &s, &r, &g, &b);
-  b_text(x, y, s, r, g, b, &font_tom_thumb);
+  mrb_get_args(mrb, "iiz", &x, &y, &s);
+  b_text(x, y, s, p_r, p_g, p_b, p_font);
+  return self;
+}
+static mrb_value ledbanner(mrb_state* mrb, mrb_value self) { 
+  mrb_int t, speed, y;
+  char *s;
+  mrb_get_args(mrb, "iiiz", &t, &speed, &y, &s);
+  b_banner(t, speed, y, s, p_r, p_g, p_b, p_font);
   return self;
 }
 
@@ -190,12 +261,21 @@ void mruby_task(void *pvParameter) {
   mrb_state *mrb = mrb_open();
   
   struct RClass *Led = mrb_define_module(mrb, "Led");
+  mrb_define_class_method(mrb, Led, "color", ledcolor, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Led, "font", ledfont, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Led, "flash", ledflash, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Led, "clear", ledclear, MRB_ARGS_REQ(1));
-  mrb_define_class_method(mrb, Led, "set", ledset, MRB_ARGS_REQ(5));
-  mrb_define_class_method(mrb, Led, "line", ledline, MRB_ARGS_REQ(7));
-  mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(6));
-  mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(6));
+  mrb_define_class_method(mrb, Led, "set", ledset, MRB_ARGS_REQ(2));
+  mrb_define_class_method(mrb, Led, "line", ledline, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(3));
+  mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(3));
+  mrb_define_class_method(mrb, Led, "banner", ledbanner, MRB_ARGS_REQ(4));
+
+  struct RClass *Time = mrb_define_module(mrb, "Time");
+  mrb_define_class_method(mrb, Time, "update", time_update, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Time, "now", time_now, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Time, "str", time_str, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, Time, "num", time_num, MRB_ARGS_REQ(1));
 
   mrbc_context *context = mrbc_context_new(mrb);
   int ai = mrb_gc_arena_save(mrb);
