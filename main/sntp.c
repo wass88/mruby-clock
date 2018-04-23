@@ -7,6 +7,8 @@
 #include <string.h>
 #include <time.h>
 #include <sys/time.h>
+#include <sys/reent.h>
+#include "sntp.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
@@ -27,8 +29,11 @@ static void initialize_sntp(void)
 {
     ESP_LOGI(TAG, "Initializing SNTP");
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
-    sntp_setservername(0, "pool.ntp.org");
+
+    sntp_setservername(0, "133.243.238.243");
+    //sntp_set_timezone(9);
     sntp_init();
+    
 }
 
 static void obtain_time(void)
@@ -46,8 +51,6 @@ static void obtain_time(void)
         time(&now);
         localtime_r(&now, &timeinfo);
     }
-
-    ESP_ERROR_CHECK( esp_wifi_stop() );
 }
 
 void get_time(time_t *now, struct tm *timeinfo) {

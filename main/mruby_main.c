@@ -16,8 +16,8 @@
 #include "esp_spi_flash.h"
 
 #include "./wifi.h"
-//#include "./server.h"
 #include "./sntp.h"
+#include "./server.h"
 #include "./mruby_task.h"
 
 void info()
@@ -87,7 +87,7 @@ void app_main(void)
     led_init();
     xTaskCreatePinnedToCore(led_print, "led_print", 2048, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(mruby_task, "mruby_task", 32768, NULL, 5, NULL, 0);
-//  xTaskCreatePinnedToCore(http_server, "http_server", 2048, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(http_server, "http_server", 2048, NULL, 5, NULL, 0);
 
     //printf("Restarting now.\n");
     //fflush(stdout);

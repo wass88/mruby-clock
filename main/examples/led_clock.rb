@@ -24,21 +24,20 @@ time_format = "%H:%M:%S"
 message = "Welcome to KMC! Please Enjoy Yourself!"
 while true do
   Led::clear 0
-    Led::color 0, 1, 0
+  Led::color 0, 1, 0 
   lines.each {|l|
     Led::line l[0], l[1], l[2], l[3]
   }
   lines.shift()
   lines << succ_line(lines[-1])
- # Led::font(i.div(100) % 4)
   Led::color 5, 0, 5
   Led::banner i, 1, 20, message
   Led::color 8, 3, 3
-
+ 
   Time::update
   Led::text 0, 10, Time::str(time_format)
   Led::flash
-
+ 
   i += 1
   mem = ESP32::System.available_memory() / 1000
   puts "Free heap: #{mem}K" if i % 1000 == 0
