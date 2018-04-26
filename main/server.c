@@ -1,3 +1,4 @@
+#include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "esp_wifi.h"
 #include "esp_system.h"
@@ -14,31 +15,69 @@
 #include "string.h"
 
 #include "server.h"
-
-#define LED_BUILTIN 16
-#define delay(ms) (vTaskDelay(ms/portTICK_RATE_MS))
+#include "mruby_task.h"
 
 const static char http_html_hdr[] =
     "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 const static char http_index_hml[] = "<!DOCTYPE html>"
       "<html>\n"
-      "<head>\n"
-      "  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-      "  <style type=\"text/css\">\n"
-      "    html, body, iframe { margin: 0; padding: 0; height: 100%; }\n"
-      "    iframe { display: block; width: 100%; border: none; }\n"
-      "  </style>\n"
       "<title>HELLO ESP32</title>\n"
-      "</head>\n"
       "<body>\n"
       "<h1>Hello World, from ESP32!</h1>\n"
       "</body>\n"
       "</html>\n";
 
+char weather_data[100];
+const int weather_data_len = 100;
 
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
 #include "lwip/api.h"
+
+int copy_to_a_char(char l, char c, char *str, char *dst) {
+    int res = 0;
+    for (; (str[res] != '\0') &&
+           (str[res] != c) &&
+           (res < l - 1); res++){
+        dst[res] = str[res];
+    }
+    dst[res] = '\0';
+    return res;
+}
+void decode(char* str) {
+    int s = 0, t = 0;
+    while (str[s] != '\0') {
+        if (str[s] == '%') {
+            str[t] = ' ';
+            s += 2;
+        }else{
+            str[t] = str[s];
+        }
+        s++; t++;
+    }
+    str[t] = '\0';
+}
+bool get(char *path) {
+    printf("Get %s\n", path);
+    if (strncmp(path, "/restart", 8) == 0) {
+        printf("RESTART..?");
+    }
+    if (strncmp(path, "/weather", 8) == 0) {
+        printf("WEATHER\n");
+        char *query = path + 8;
+        if (strlen(query) >= 3) { // /weather?q=Hoge
+            query += 3;
+            printf("weather data = %s\n", query);
+            strcpy(weather_data, query);
+            decode(weather_data);
+            printf("weather data = %s\n", weather_data);
+        }
+    }
+    return false;
+}
+bool post(char *path, char *data) {
+    return false;
+}
 
 static void
 http_server_netconn_serve(struct netconn *conn)
@@ -59,22 +98,32 @@ http_server_netconn_serve(struct netconn *conn)
 
     /* Is this an HTTP GET command? (only check the first 5 chars, since
     there are other formats for GET, and we're keeping it very simple )*/
-    printf("buffer = %s \n", buf);
-    if (buflen>=5 &&
-        buf[0]=='G' &&
-        buf[1]=='E' &&
-        buf[2]=='T' &&
-        buf[3]==' ' &&
-        buf[4]=='/' ) {
-          printf("buf[5] = %c\n", buf[5]);
+    printf("buffer = %s\n", buf);
+    const int path_len = 100;
+    char path[path_len];
+    if (buflen>=6) {
+        if (strncmp(buf, "GET ", 4) == 0) {
+            copy_to_a_char(path_len, ' ', buf + 4, path);
+            get(path);
+        }
+        if (strncmp(buf, "POST ", 5) == 0) {
+            char * nbuf = buf + 5;
+            nbuf += copy_to_a_char(path_len, ' ', nbuf, path) + 1;
+            assert(nbuf[-1] != '\0');
+            while (nbuf[0] != '\n') {
+                nbuf += copy_to_a_char(path_len, '\n', nbuf, path) + 1;
+                assert(nbuf[-1] != '\0');
+            }
+            printf("post %s\n  data = %s", path, nbuf + 1);
+            post(path, nbuf + 1);
+        }
+
       /* Send the HTML header
              * subtract 1 from the size, since we dont send the \0 in the string
              * NETCONN_NOCOPY: our data is const static, so no need to copy it
        */
-
       netconn_write(conn, http_html_hdr, sizeof(http_html_hdr)-1, NETCONN_NOCOPY);
       netconn_write(conn, http_index_hml, sizeof(http_index_hml)-1, NETCONN_NOCOPY);
-
     }
 
   }

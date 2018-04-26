@@ -20,7 +20,7 @@ end
   aline = succ_line(aline)
 }
 
-time_format = "%H:%M:%S"
+time_format = "%H:%M"
 message = "Welcome to KMC! Please Enjoy Yourself!"
 while true do
   Led::clear 0
@@ -30,12 +30,25 @@ while true do
   }
   lines.shift()
   lines << succ_line(lines[-1])
-  Led::color 5, 0, 5
-  Led::banner i, 1, 20, message
-  Led::color 8, 3, 3
- 
+
+
+  Led::font 2
+  Led::color 7, 3, 3
   Time::update
-  Led::text 0, 10, Time::str(time_format)
+  Led::text 1, 12, Time::str(time_format)
+
+  Led::font 0
+  Led::color 5, 0, 5
+  Led::banner i, 1, 23, message
+  
+  w = Task::weather()
+  Led::color 0, 5, 5
+  if w.size() > 8 then
+    Led::banner i, 1, 1, w 
+  else
+    Led::text 1, 1, w
+  end
+
   Led::flash
  
   i += 1

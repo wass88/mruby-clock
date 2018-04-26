@@ -20,6 +20,7 @@
 #include "./font.h"
 #include "./fonts.h"
 #include "./sntp.h"
+#include "./server.h"
 
 #define TAG "mruby_task"
 
@@ -43,6 +44,13 @@
 #define TONE 8
 
 #define LEN(a) sizeof(a) / sizeof(a[0])
+
+bool task_switched = false;
+char* task_script = "\n\
+puts 'start'\n\
+Led::clear 3\n\
+Led::flash\n\
+";
 
 int output_pins[] = {
     R0_PIN, G0_PIN, B0_PIN,
@@ -257,6 +265,27 @@ static mrb_value ledbanner(mrb_state* mrb, mrb_value self) {
   return self;
 }
 
+static mrb_value task_loop(mrb_state* mrb, mrb_value self) { 
+  ESP_LOGI(TAG, "%s", "Called");
+/*  mrb_value block;
+  mrb_get_args(mrb, "&", &block);
+  ESP_LOGI(TAG, "%s", "Start");
+  while (!task_switched) {
+    mrb_value val;
+    mrb_yield(mrb, block, val);
+    ESP_LOGI(TAG, "%s", "Yielded");
+    vTaskDelay(10 / portTICK_PERIOD_MS);
+  }
+  task_switched = false;
+  ESP_LOGI(TAG, "%s", "End");
+  mrb_funcall(mrb, mrb_top_self(mrb), "exit", 0);
+  */
+  return self;
+}
+static mrb_value task_weather(mrb_state* mrb, mrb_value self) { 
+  return mrb_str_new_cstr(mrb, weather_data); 
+}
+
 void mruby_task(void *pvParameter) {
   mrb_state *mrb = mrb_open();
   
@@ -277,16 +306,24 @@ void mruby_task(void *pvParameter) {
   mrb_define_class_method(mrb, Time, "str", time_str, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Time, "num", time_num, MRB_ARGS_REQ(1));
 
+  struct RClass *Task = mrb_define_module(mrb, "Task");
+  mrb_define_class_method(mrb, Task, "loop", task_loop, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, Task, "weather", task_weather, MRB_ARGS_NONE());
+
   mrbc_context *context = mrbc_context_new(mrb);
   int ai = mrb_gc_arena_save(mrb);
   ESP_LOGI(TAG, "%s", "Loading binary...");
+
+  //mrb_load_string_cxt(mrb, "puts 'say'", context);
   mrb_load_irep_cxt(mrb, example_mrb, context);
+  printf("%s", task_script);
   if (mrb->exc) {
     ESP_LOGE(TAG, "Exception occurred: %s", mrb_str_to_cstr(mrb, mrb_inspect(mrb, mrb_obj_value(mrb->exc))));
     mrb->exc = 0;
   } else {
     ESP_LOGI(TAG, "%s", "Success");
   }
+
   mrb_gc_arena_restore(mrb, ai);
   mrbc_context_free(mrb, context);
   mrb_close(mrb);

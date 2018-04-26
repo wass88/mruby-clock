@@ -10,7 +10,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#define EXAMPLE_WIFI_SSID "KMC"
+#define EXAMPLE_WIFI_SSID "KMC_RM_MINI"
 #define EXAMPLE_WIFI_PASS "XXXX"
 
 
