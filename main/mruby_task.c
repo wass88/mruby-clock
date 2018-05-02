@@ -45,12 +45,13 @@
 
 #define LEN(a) sizeof(a) / sizeof(a[0])
 
-bool task_switched = false;
-char* task_script = "\n\
-puts 'start'\n\
-Led::clear 3\n\
-Led::flash\n\
-";
+static uint8_t 
+#if defined __GNUC__
+__attribute__((aligned(4)))
+#elif defined _MSC_VER
+__declspec(align(4))
+#endif
+prog_running[prog_size];
 
 int output_pins[] = {
     R0_PIN, G0_PIN, B0_PIN,
@@ -80,6 +81,7 @@ void led_init(void) {
         gpio_output(output_pins[i]);
         gpio_set_level(output_pins[i], 0);
     }
+    gpio_set_level(OE_PIN, 1);
 }
 
 
@@ -129,7 +131,8 @@ int display[BSIZE];
 int ac(int x, int y, int c) { return y * (SIZE * CHAN) + x * (CHAN) + c; }
 
 struct bitmap_font const * const font_list[] =  {
-  &font_tom_thumb, &font_5x7, &font_6x9, &font_3x8
+  &font_tom_thumb, &font_5x7, &font_6x9, &font_3x8,
+  &font_k6x8, &font_k8x8
 };
 
 void b_flash() {
@@ -166,19 +169,8 @@ void b_line(int x0, int y0, int x1, int y1, int r, int g, int b) {
   }
 }
 
-int find_index(int len, const unsigned short *idxs, unsigned short chr) {
-  int l = -1, r = len;
-  while(r - l > 1) {
-    int m = (r + l) / 2;
-    if (chr <= idxs[m]) r = m;
-    else l = m;
-  }
-  if (r < 0 || r >= len || chr != idxs[r]) return -1;
-  return r;
-}
-
 void b_char(int x, int y, short chr, int r, int g, int b, const struct bitmap_font *font){
-  int idx = find_index(font->Chars, font->Index, chr);
+  int idx = w_index(font->Chars, font->Index, chr);
   if(idx < 0) { idx = 1; }
   for (int i = 0; i < font->Height; i++) {
     int line = font->Bitmap[font->Height * idx + i];
@@ -191,20 +183,30 @@ void b_char(int x, int y, short chr, int r, int g, int b, const struct bitmap_fo
   }
 }
 
+static short tgt[300];
 void b_text(int x, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
   int w = font->Width;
   int start = (x < 0) ? - x / w : 0;
-  int len = strlen(str);
+  int len = iso2022_decode(str, tgt);
   for (int i = 0; x + (start + i) * w <= SIZE + w &&
                   start + i < len; i++) {
-    b_char(x + (start + i) * w, y, str[start + i], r, g, b, font);
+    b_char(x + (start + i) * w, y, tgt[start + i], r, g, b, font);
   }
 }
 
-void b_banner(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
-  int len = strlen(str);
+void b_scroll(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+  int len = iso2022_decode(str, tgt);
   int period = (len - 1) * font->Width + SIZE + 1;
   b_text(32 - ((t / speed) % period), y, str, r, g, b, font);
+}
+
+void b_show(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+  int len = iso2022_decode(str, tgt);
+  if (font->Width * len <= SIZE) {
+    b_text(0, y, str, r, g, b, font);
+  } else {
+    b_scroll(t, speed, y, str, r, g, b, font);
+  }
 }
 
 int p_r = TONE, p_g = TONE, p_b = TONE;
@@ -257,38 +259,44 @@ static mrb_value ledtext(mrb_state* mrb, mrb_value self) {
   b_text(x, y, s, p_r, p_g, p_b, p_font);
   return self;
 }
-static mrb_value ledbanner(mrb_state* mrb, mrb_value self) { 
+static mrb_value ledscroll(mrb_state* mrb, mrb_value self) { 
   mrb_int t, speed, y;
   char *s;
   mrb_get_args(mrb, "iiiz", &t, &speed, &y, &s);
-  b_banner(t, speed, y, s, p_r, p_g, p_b, p_font);
+  b_scroll(t, speed, y, s, p_r, p_g, p_b, p_font);
+  return self;
+}
+static mrb_value ledshow(mrb_state* mrb, mrb_value self) { 
+  mrb_int t, speed, y;
+  char *s;
+  mrb_get_args(mrb, "iiiz", &t, &speed, &y, &s);
+  b_show(t, speed, y, s, p_r, p_g, p_b, p_font);
   return self;
 }
 
 static mrb_value task_loop(mrb_state* mrb, mrb_value self) { 
-  ESP_LOGI(TAG, "%s", "Called");
-/*  mrb_value block;
+  ESP_LOGI(TAG, "%s", "Task_Loop");
+  mrb_value block;
   mrb_get_args(mrb, "&", &block);
   ESP_LOGI(TAG, "%s", "Start");
-  while (!task_switched) {
+  while (!prog_updated) {
     mrb_value val;
     mrb_yield(mrb, block, val);
-    ESP_LOGI(TAG, "%s", "Yielded");
-    vTaskDelay(10 / portTICK_PERIOD_MS);
+    vTaskDelay(30 / portTICK_PERIOD_MS);
   }
-  task_switched = false;
-  ESP_LOGI(TAG, "%s", "End");
-  mrb_funcall(mrb, mrb_top_self(mrb), "exit", 0);
-  */
+  prog_updated = false;
+  ESP_LOGI(TAG, "%s", "Task_Loop END");
   return self;
 }
-static mrb_value task_weather(mrb_state* mrb, mrb_value self) { 
-  return mrb_str_new_cstr(mrb, weather_data); 
+static mrb_value task_cmd(mrb_state* mrb, mrb_value self) { 
+  return mrb_str_new_cstr(mrb, cmd_raw_data); 
+}
+static mrb_value task_sleep(mrb_state* mrb, mrb_value self) { 
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+  return self;
 }
 
-void mruby_task(void *pvParameter) {
-  mrb_state *mrb = mrb_open();
-  
+void defines(mrb_state *mrb) {
   struct RClass *Led = mrb_define_module(mrb, "Led");
   mrb_define_class_method(mrb, Led, "color", ledcolor, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Led, "font", ledfont, MRB_ARGS_REQ(1));
@@ -298,7 +306,8 @@ void mruby_task(void *pvParameter) {
   mrb_define_class_method(mrb, Led, "line", ledline, MRB_ARGS_REQ(4));
   mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(3));
-  mrb_define_class_method(mrb, Led, "banner", ledbanner, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "scroll", ledscroll, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "show", ledshow, MRB_ARGS_REQ(4));
 
   struct RClass *Time = mrb_define_module(mrb, "Time");
   mrb_define_class_method(mrb, Time, "update", time_update, MRB_ARGS_NONE());
@@ -308,30 +317,44 @@ void mruby_task(void *pvParameter) {
 
   struct RClass *Task = mrb_define_module(mrb, "Task");
   mrb_define_class_method(mrb, Task, "loop", task_loop, MRB_ARGS_REQ(1));
-  mrb_define_class_method(mrb, Task, "weather", task_weather, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Task, "cmd", task_cmd, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Task, "sleep", task_sleep, MRB_ARGS_NONE());
+}
 
-  mrbc_context *context = mrbc_context_new(mrb);
-  int ai = mrb_gc_arena_save(mrb);
-  ESP_LOGI(TAG, "%s", "Loading binary...");
+void mruby_task(void *pvParameter) {
+  memcpy(prog_mrb, example_mrb, sizeof(example_mrb));
+  memcpy(prog_running, prog_mrb, sizeof(prog_running));
 
-  //mrb_load_string_cxt(mrb, "puts 'say'", context);
-  mrb_load_irep_cxt(mrb, example_mrb, context);
-  printf("%s", task_script);
-  if (mrb->exc) {
-    ESP_LOGE(TAG, "Exception occurred: %s", mrb_str_to_cstr(mrb, mrb_inspect(mrb, mrb_obj_value(mrb->exc))));
-    mrb->exc = 0;
-  } else {
-    ESP_LOGI(TAG, "%s", "Success");
+    mrb_state *mrb = mrb_open();
+    defines(mrb);
+  while (1) {
+
+    mrbc_context *context = mrbc_context_new(mrb);
+    int ai = mrb_gc_arena_save(mrb);
+    ESP_LOGI(TAG, "%s", "Loading binary...");
+
+    //mrb_load_string_cxt(mrb, "puts 'say'", context);
+    memcpy(prog_running, prog_mrb, sizeof(prog_running));
+    mrb_load_irep_cxt(mrb, prog_running, context);
+    if (mrb->exc) {
+      char *err = mrb_str_to_cstr(mrb, mrb_inspect(mrb, mrb_obj_value(mrb->exc)));
+      ESP_LOGE(TAG, "Exception occurred: %s", err);
+      strcpy(prog_error, err);
+      mrb->exc = 0;
+    } else {
+      ESP_LOGI(TAG, "%s", "Success");
+    }
+
+    mrb_gc_arena_restore(mrb, ai);
+    mrbc_context_free(mrb, context);
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
-
-  mrb_gc_arena_restore(mrb, ai);
-  mrbc_context_free(mrb, context);
-  mrb_close(mrb);
+    mrb_close(mrb);
 
   // This task should never end, even if the
   // script ends.
-  while (1) {
-  }
+  //while (1) {
+  //}
 }
 
 int pwm_num[] = {0, 4, 2, 6, 1, 5, 3, 7};

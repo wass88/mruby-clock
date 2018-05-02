@@ -22,7 +22,7 @@ end
 
 time_format = "%H:%M"
 message = "Welcome to KMC! Please Enjoy Yourself!"
-while true do
+Task::loop do
   Led::clear 0
   Led::color 0, 1, 0 
   lines.each {|l|
@@ -39,20 +39,15 @@ while true do
 
   Led::font 0
   Led::color 5, 0, 5
-  Led::banner i, 1, 23, message
+  Led::show i, 1, 23, message
   
-  w = Task::weather()
+  Led::font 5
+  w = Task::cmd()
   Led::color 0, 5, 5
-  if w.size() > 8 then
-    Led::banner i, 1, 1, w 
-  else
-    Led::text 1, 1, w
-  end
+  Led::show i, 1, 1, w 
 
   Led::flash
  
   i += 1
-  mem = ESP32::System.available_memory() / 1000
-  puts "Free heap: #{mem}K" if i % 1000 == 0
-  ESP32::System.delay(100)
+  Task::sleep
 end
