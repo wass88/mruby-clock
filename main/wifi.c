@@ -10,9 +10,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#define EXAMPLE_WIFI_SSID "KMC_RM_MINI"
-#define EXAMPLE_WIFI_PASS "XXXX"
-
+#include "wifi_setting.h"
 
 static EventGroupHandle_t wifi_event_group;
 const int WIFI_CONNECTED_BIT = BIT0;
