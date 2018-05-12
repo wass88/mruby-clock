@@ -32,7 +32,8 @@ const static char http_index_hml[] =
     "<h2>binary(16)</h2>\n"
     "<form action='./prog' method='post'>\n"
     "<textarea name='q'></textarea>\n"
-    "<input type='submit' value='submit'>\n"
+    "<input type='submit' value='submit'>\n";
+const static char http_index_last[] = 
     "</form>\n"
     "</html>\n";
 
@@ -100,7 +101,7 @@ int parse_prog(char *str, uint8_t *prog) {
     }
     return res;
 }
-char prog_raw_data[8192];
+char prog_raw_data[prog_size * 2];
 bool get(char *path) {
     printf("Get %s\n", path);
     if (strncmp(path, "/restart", 8) == 0) {
@@ -133,6 +134,7 @@ bool post(char *path, char *data) {
 #define path_len 512u
 static char path[path_len];
 static char header[path_len];
+static char buf[prog_size * 3];
 
 static void
 http_server_netconn_serve(struct netconn *conn)
@@ -148,6 +150,8 @@ http_server_netconn_serve(struct netconn *conn)
 
   if (err == ERR_OK) {
     netbuf_data(inbuf, (void**)&buf, &buflen);
+    //printf("GET BUF");
+    //u16_t buflen = netbuf_copy(inbuf, buf, sizeof(buf));
 
     // strncpy(_mBuffer, buf, buflen);
 
@@ -176,13 +180,17 @@ http_server_netconn_serve(struct netconn *conn)
              * subtract 1 from the size, since we dont send the \0 in the string
              * NETCONN_NOCOPY: our data is const static, so no need to copy it
        */
+      printf("PRINT\n");
       netconn_write(conn, http_html_hdr, sizeof(http_html_hdr)-1, NETCONN_NOCOPY);
       netconn_write(conn, http_index_hml, sizeof(http_index_hml)-1, NETCONN_NOCOPY);
+      //netconn_write(conn, prog_error, sizeof(prog_error)-1, NETCONN_NOCOPY);
+      //netconn_write(conn, http_index_last, sizeof(http_index_last)-1, NETCONN_NOCOPY);
     }
 
   }
   /* Close the connection (server closes in HTTP) */
   netconn_close(conn);
+  printf("CLOSE\n");
 
   /* Delete the buffer (netconn_recv gives us ownership,
    so we have to make sure to deallocate the buffer) */

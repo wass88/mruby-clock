@@ -87,7 +87,7 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(led_print, "led_print", 2048, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(mruby_task, "mruby_task", 32768, NULL, 5, NULL, 0);
-    xTaskCreatePinnedToCore(http_server, "http_server", 2048, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(http_server, "http_server", 8192, NULL, 5, NULL, 0);
 
     //printf("Restarting now.\n");
     //fflush(stdout);

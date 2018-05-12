@@ -49,5 +49,4 @@ Task::loop do
   Led::flash
  
   i += 1
-  Task::sleep
 end
