@@ -55,15 +55,14 @@ http_server_netconn_serve(struct netconn *conn)
 
   if (err == ERR_OK) {
     netbuf_data(inbuf, (void**)&buf, &buflen);
-    //printf("GET BUF");
-    //u16_t buflen = netbuf_copy(inbuf, buf, sizeof(buf));
-
-    // strncpy(_mBuffer, buf, buflen);
-
-    /* Is this an HTTP GET command? (only check the first 5 chars, since
-    there are other formats for GET, and we're keeping it very simple )*/
-    printf("buffer = %s\n", buf);
+    printf("len = %d ,buffer = %s\n", buflen, buf);
     exec_http(buflen, buf, &res);
+    while(netbuf_next(inbuf) >= 0){
+        printf("NEXT \n");
+        netbuf_data(inbuf, (void**)&buf, &buflen);
+        exec_next(buflen, buf, &res);
+    }
+    exec_end(&res);
     /* Send the HTML header
             * subtract 1 from the size, since we dont send the \0 in the string
             * NETCONN_NOCOPY: our data is const static, so no need to copy it

@@ -3,9 +3,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 extern char cmd_raw_data[];
+extern bool cmd_updated;
 extern bool prog_updated;
 extern uint8_t prog_mrb[];
-#define prog_size 4096
+#define prog_size 16384
 extern char prog_error[];
 struct response_t {
     bool get;
@@ -13,5 +14,8 @@ struct response_t {
     bool restart;
     bool ok;
 };
+void exec_start();
 void exec_http(int, char*, struct response_t*);
+void exec_next(int, char*, struct response_t*);
+void exec_end(struct response_t*);
 #endif

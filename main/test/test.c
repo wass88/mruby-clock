@@ -36,6 +36,10 @@ bool _assert_eq_uint8_p(int line, int num, uint8_t* exp, uint8_t* real) {
 
 int main(void){
     assert_eq_int(10, c16('A'));
-    struct response_t res = { .get = true, .post = false, .restart = false, .ok = false };
+    struct response_t ires = { .get = true, .post = false, .restart = false, .ok = false };
+    struct response_t res;
+    res = ires;
     exec_http(10, "GET /cmd?q=HOGE", &res);
+    res = ires;
+    exec_http(10, "POST /prog\r\n\r\nA", &res);
 }

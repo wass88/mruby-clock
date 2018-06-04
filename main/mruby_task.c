@@ -291,6 +291,15 @@ static mrb_value task_loop(mrb_state* mrb, mrb_value self) {
 static mrb_value task_cmd(mrb_state* mrb, mrb_value self) { 
   return mrb_str_new_cstr(mrb, cmd_raw_data); 
 }
+
+static mrb_value task_update(mrb_state* mrb, mrb_value self) { 
+  if (cmd_updated) {
+    cmd_updated = false;
+    return mrb_true_value();
+  } 
+  return mrb_false_value();
+}
+
 static mrb_value task_sleep(mrb_state* mrb, mrb_value self) { 
   vTaskDelay(100 / portTICK_PERIOD_MS);
   return self;
@@ -318,6 +327,7 @@ void defines(mrb_state *mrb) {
   struct RClass *Task = mrb_define_module(mrb, "Task");
   mrb_define_class_method(mrb, Task, "loop", task_loop, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Task, "cmd", task_cmd, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Task, "updated?", task_update, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Task, "sleep", task_sleep, MRB_ARGS_NONE());
 }
 

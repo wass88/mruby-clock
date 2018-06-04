@@ -9,8 +9,9 @@
 
 char cmd_raw_data[300];
 const int cmd_raw_data_len = 300;
+bool cmd_updated = false;
 bool prog_updated = false;
-char prog_error[400];
+char prog_error[200];
 
 uint8_t 
 #if defined __GNUC__
@@ -19,8 +20,9 @@ __attribute__((aligned(4)))
 __declspec(align(4))
 #endif
 prog_mrb[prog_size];
+static int prog_mrb_cursor = 0;
 
-char prog_raw_data[prog_size * 2];
+char prog_raw_data[2048];
 
 int parse_query(char *str, char* query) {
     if (strlen(str) >= 2) { // /q=Hoge
@@ -57,6 +59,12 @@ void get(char *path, struct response_t* res) {
         printf("CMD = %s\n", path + 4);
         parse_query(path + 4, cmd_raw_data);
         printf("DATA = %s\n", cmd_raw_data);
+        cmd_updated = true;
+        return;
+    }
+    if (strncmp(path, "/progend", 8) == 0) {
+        printf("PROGEND");
+        prog_updated = true;
         return;
     }
     printf("Unknown GET\n");
@@ -70,9 +78,15 @@ void post(char *path, char *data, struct response_t* res) {
         parse_query(data, prog_raw_data);
         printf("DATA = %s\n", prog_raw_data);
         memset(prog_mrb, 0, sizeof(prog_mrb));
-        parse_prog(prog_raw_data, prog_mrb);
+        prog_mrb_cursor = parse_prog(prog_raw_data, prog_mrb);
         printf("PROG = %x %x %x ...\n", prog_mrb[0], prog_mrb[1], prog_mrb[2]);
-        prog_updated = true;
+        return;
+    }
+    if (strncmp(path, "/appp", 5) == 0) {
+        printf("PROGAPP\n");
+        parse_query(data, prog_raw_data);
+        printf("DATA = %s\n", prog_raw_data);
+        prog_mrb_cursor += parse_prog(prog_raw_data, prog_mrb + prog_mrb_cursor);
         return;
     }
     printf("Unknown POST\n");
@@ -106,4 +120,12 @@ void exec_http(int buflen, char *buf, struct response_t* res){
     }
     printf("Unknown HTTP method");
     res->ok = false;
+}
+
+void exec_next(int buflen, char *buf, struct response_t* res) {
+    printf("NEXT = %s", buf);
+    prog_mrb_cursor += parse_prog(prog_raw_data, prog_mrb + prog_mrb_cursor);
+}
+
+void exec_end(struct response_t* res) {
 }
