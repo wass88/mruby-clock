@@ -68,3 +68,12 @@ void get_time(time_t *now, struct tm *timeinfo) {
     }
 
 }
+
+void sync_sntp(void *pvParameter) {
+    while (true) {
+        vTaskDelay(24 * 60 * 60 * 1000 / portTICK_PERIOD_MS);
+        ESP_LOGI(TAG, "Resync Time");
+        sntp_stop();
+        sntp_init();
+    }
+}

@@ -40,36 +40,6 @@ void info()
     printf("PERIOD_MS: %d\n", portTICK_PERIOD_MS);
 }
 
-/*
-void update_buf() {
-    int i = 0;
-    while(true) {
-        for (int y = 0; y < 32; y++) {
-            for (int x = 0; x < 32; x++) {
-                r_buf[y][x] = x%TONE;
-                g_buf[y][x] = y%TONE;
-                b_buf[y][x] = (x/TONE) + (y/TONE);
-            }
-        }
-
-        time_t now;
-        struct tm time_info;
-        get_time(&now, &time_info);
-        int sec = time_info.tm_sec,
-            min = time_info.tm_min,
-            hour = time_info.tm_hour;
-        print_number(3,  1,  hour/10);
-        print_number(3,  6,  hour%10);
-        print_number(12, 10, min/10);
-        print_number(12, 15, min%10);
-        print_number(21, 19, sec/10);
-        print_number(21, 24, sec%10);
-        vTaskDelay(500 / portTICK_PERIOD_MS);
-        i++;
-    }
-}
-*/
-
 void app_main(void)
 {
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -86,10 +56,7 @@ void app_main(void)
     printf("%s\n", strtime);
 
     xTaskCreatePinnedToCore(led_print, "led_print", 2048, NULL, 5, NULL, 1);
+    xTaskCreatePinnedToCore(sync_sntp, "sync_sntp", 2048, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(mruby_task, "mruby_task", 32768, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(http_server, "http_server", 8192, NULL, 5, NULL, 0);
-
-    //printf("Restarting now.\n");
-    //fflush(stdout);
-    //esp_restart();
 }
