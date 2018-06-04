@@ -20,7 +20,7 @@
 #include "./font.h"
 #include "./fonts.h"
 #include "./sntp.h"
-#include "./server.h"
+#include "./server_mod.h"
 
 #define TAG "mruby_task"
 
