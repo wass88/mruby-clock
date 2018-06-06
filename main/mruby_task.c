@@ -42,6 +42,7 @@
 #define OE_PIN 26
 
 #define TONE 8
+int pwm_num[] = {0, 4, 2, 6, 1, 5, 3, 7};
 
 #define LEN(a) sizeof(a) / sizeof(a[0])
 
@@ -124,9 +125,10 @@ static mrb_value time_num(mrb_state* mrb, mrb_value self) {
 
 #define SIZE 32
 #define CHAN 3
+#define BUFS 3
 #define BSIZE SIZE*SIZE*CHAN
 
-int buffer[BSIZE];
+int buffer[BSIZE*2];
 int display[BSIZE];
 int ac(int x, int y, int c) { return y * (SIZE * CHAN) + x * (CHAN) + c; }
 
@@ -143,10 +145,32 @@ void b_clear(int c) {
   memset(buffer, c, BSIZE * sizeof(int));
 }
 
+void b_clear_buf(int c, int k) {
+  memset(buffer + k * BSIZE, c, BSIZE * sizeof(int));
+}
+
+void b_copy_buf(int t, int f) {
+  memcpy(buffer + t * BSIZE, buffer + f * BSIZE, BSIZE * sizeof(int));
+}
+
 void b_set(int x, int y, int r, int g, int b) {
+  if (!(0 <= x && x < SIZE && 0 <= y && y < SIZE * BUFS)) return;
   buffer[ac(x,y,0)] = r;
   buffer[ac(x,y,1)] = g;
   buffer[ac(x,y,2)] = b;
+}
+
+void b_copy(int tx, int ty, int fx, int fy, int w, int h) {
+  for (int y = 0; y < h; y++) {
+    for (int x = 0; x < w; x++) {
+      if (!(0 <= fx + x && fx + x < SIZE && 0 <= fy + y && fx + y < SIZE * BUFS)) continue;
+      b_set(tx + x, ty + y,
+        buffer[ac(fx + x, fy + y, 0)],
+        buffer[ac(fx + x, fy + y, 1)],
+        buffer[ac(fx + x, fy + y, 2)]
+      );
+    }
+  }
 }
 
 void b_line(int x0, int y0, int x1, int y1, int r, int g, int b) {
@@ -165,6 +189,57 @@ void b_line(int x0, int y0, int x1, int y1, int r, int g, int b) {
     if (e2 < dx) {
       err = err + dx;
       y0 = y0 + sy;
+    }
+  }
+}
+
+void b_rect(int x0, int y0, int x1, int y1, int r, int g, int b) {
+  b_line(x0, y0, x0, y1, r, g, b);
+  b_line(x0, y0, x1, y0, r, g, b);
+  b_line(x1, y0, x1, y1, r, g, b);
+  b_line(x0, y1, x1, y1, r, g, b);
+}
+
+void b_fill_rect(int x0, int y0, int x1, int y1, int r, int g, int b) {
+  for (int y = y0; y <= y1; y++){
+    b_line(x0, y, x1, y, r, g, b);
+  }
+}
+
+void b_fill_circle(bool fill, int x0, int y0, int radius, int r, int g, int b) {
+  int x = radius-1;
+  int y = 0;
+  int dx = 1;
+  int dy = 1;
+  int err = dx - (radius << 1);
+
+  while (x >= y) {
+    if (fill) {
+      b_line(x0 + x, y0 + y, x0 - x, y0 + y, r, g, b);
+      b_line(x0 + y, y0 + x, x0 - y, y0 + x, r, g, b);
+      b_line(x0 - x, y0 - y, x0 + x, y0 - y, r, g, b);
+      b_line(x0 - y, y0 - x, x0 + y, y0 - x, r, g, b);
+    } else {
+      b_set(x0 + x, y0 + y, r, g, b);
+      b_set(x0 + y, y0 + x, r, g, b);
+      b_set(x0 - y, y0 + x, r, g, b);
+      b_set(x0 - x, y0 + y, r, g, b);
+      b_set(x0 - x, y0 - y, r, g, b);
+      b_set(x0 - y, y0 - x, r, g, b);
+      b_set(x0 + y, y0 - x, r, g, b);
+      b_set(x0 + x, y0 - y, r, g, b);
+    }
+
+    if (err <= 0) {
+      y++;
+      err += dy;
+      dy += 2;
+    }
+    
+    if (err > 0) {
+      x--;
+      dx += 2;
+      err += dx - (radius << 1);
     }
   }
 }
@@ -234,16 +309,58 @@ static mrb_value ledclear(mrb_state* mrb, mrb_value self) {
   b_clear(v);
   return self;
 }
+static mrb_value ledclear_buf(mrb_state* mrb, mrb_value self) { 
+  mrb_int v, k;
+  mrb_get_args(mrb, "ii", &v, &k);
+  b_clear_buf(v, k);
+  return self;
+}
+static mrb_value ledcopy_buf(mrb_state* mrb, mrb_value self) { 
+  mrb_int t, f;
+  mrb_get_args(mrb, "ii", &t, &f);
+  b_copy_buf(t, f);
+  return self;
+}
 static mrb_value ledset(mrb_state* mrb, mrb_value self) { 
   mrb_int x, y;
   mrb_get_args(mrb, "ii", &x, &y);
   b_set(x, y, p_r, p_g, p_b);
   return self;
 }
+static mrb_value ledcopy(mrb_state* mrb, mrb_value self) { 
+  mrb_int tx, ty, fx, fy, w, h;
+  mrb_get_args(mrb, "iiiiii", &tx, &ty, &fx, &fy, &w, &h);
+  b_copy(tx, ty, fx, fy, w, h);
+  return self;
+}
 static mrb_value ledline(mrb_state* mrb, mrb_value self) { 
   mrb_int x0, y0, x1, y1;
   mrb_get_args(mrb, "iiii", &x0, &y0, &x1, &y1);
   b_line(x0, y0, x1, y1, p_r, p_g, p_b);
+  return self;
+}
+static mrb_value ledrect(mrb_state* mrb, mrb_value self) { 
+  mrb_int x0, y0, x1, y1;
+  mrb_get_args(mrb, "iiii", &x0, &y0, &x1, &y1);
+  b_rect(x0, y0, x1, y1, p_r, p_g, p_b);
+  return self;
+}
+static mrb_value ledfill_rect(mrb_state* mrb, mrb_value self) { 
+  mrb_int x0, y0, x1, y1;
+  mrb_get_args(mrb, "iiii", &x0, &y0, &x1, &y1);
+  b_fill_rect(x0, y0, x1, y1, p_r, p_g, p_b);
+  return self;
+}
+static mrb_value ledcircle(mrb_state* mrb, mrb_value self) { 
+  mrb_int x0, y0, r;
+  mrb_get_args(mrb, "iii", &x0, &y0, &r);
+  b_fill_circle(false, x0, y0, r, p_r, p_g, p_b);
+  return self;
+}
+static mrb_value ledfill_circle(mrb_state* mrb, mrb_value self) { 
+  mrb_int x0, y0, r;
+  mrb_get_args(mrb, "iii", &x0, &y0, &r);
+  b_fill_circle(true, x0, y0, r, p_r, p_g, p_b);
   return self;
 }
 static mrb_value ledchar(mrb_state* mrb, mrb_value self) { 
@@ -310,9 +427,16 @@ void defines(mrb_state *mrb) {
   mrb_define_class_method(mrb, Led, "color", ledcolor, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Led, "font", ledfont, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Led, "flash", ledflash, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Led, "clear_buf", ledclear_buf, MRB_ARGS_REQ(2));
+  mrb_define_class_method(mrb, Led, "copy_buf", ledcopy_buf, MRB_ARGS_REQ(2));
   mrb_define_class_method(mrb, Led, "clear", ledclear, MRB_ARGS_REQ(1));
+  mrb_define_class_method(mrb, Led, "copy", ledcopy, MRB_ARGS_REQ(6));
   mrb_define_class_method(mrb, Led, "set", ledset, MRB_ARGS_REQ(2));
   mrb_define_class_method(mrb, Led, "line", ledline, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "rect", ledrect, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "fill_rect", ledfill_rect, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "circle", ledcircle, MRB_ARGS_REQ(3));
+  mrb_define_class_method(mrb, Led, "fill_circle", ledfill_circle, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "scroll", ledscroll, MRB_ARGS_REQ(4));
@@ -333,10 +457,9 @@ void defines(mrb_state *mrb) {
 
 void mruby_task(void *pvParameter) {
   memcpy(prog_mrb, example_mrb, sizeof(example_mrb));
-  memcpy(prog_running, prog_mrb, sizeof(prog_running));
 
-    mrb_state *mrb = mrb_open();
-    defines(mrb);
+  mrb_state *mrb = mrb_open();
+  defines(mrb);
   while (1) {
 
     mrbc_context *context = mrbc_context_new(mrb);
@@ -359,15 +482,11 @@ void mruby_task(void *pvParameter) {
     mrbc_context_free(mrb, context);
     vTaskDelay(1000 / portTICK_PERIOD_MS);
   }
-    mrb_close(mrb);
+  mrb_close(mrb);
 
-  // This task should never end, even if the
-  // script ends.
-  //while (1) {
-  //}
+  // This task should never end.
 }
 
-int pwm_num[] = {0, 4, 2, 6, 1, 5, 3, 7};
 void led_print(void *pvParameter) {
     
     int line = 0;
@@ -399,6 +518,6 @@ void led_print(void *pvParameter) {
             pwm ++;
             if (pwm >= TONE) pwm = 0;
         }
-        vTaskDelay(1 / portTICK_PERIOD_MS);
+       vTaskDelay(1 / portTICK_PERIOD_MS);
     }
 }

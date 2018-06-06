@@ -22,6 +22,11 @@ __declspec(align(4))
 prog_mrb[prog_size];
 static int prog_mrb_cursor = 0;
 
+void new_response(struct response_t *res) {
+    struct response_t a = { .get = false, .post = false,
+      .restart = false, .ok = false, .res_err = false };
+    * res = a;
+}
 char prog_raw_data[2048];
 
 int parse_query(char *str, char* query) {
@@ -63,8 +68,13 @@ void get(char *path, struct response_t* res) {
         return;
     }
     if (strncmp(path, "/progend", 8) == 0) {
-        printf("PROGEND");
+        printf("PROGEND\n");
         prog_updated = true;
+        return;
+    }
+    if (strncmp(path, "/err", 8) == 0) {
+        printf("RETURN ERR\n");
+        res->res_err = true;
         return;
     }
     printf("Unknown GET\n");

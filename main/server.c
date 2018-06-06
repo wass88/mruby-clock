@@ -47,7 +47,8 @@ http_server_netconn_serve(struct netconn *conn)
   char *buf;
   u16_t buflen;
   err_t err;
-  struct response_t res = { .get = true, .post = false, .restart = false, .ok = false };
+  struct response_t res;
+  new_response(&res);
 
   /* Read the data from the port, blocking if nothing yet there.
    We assume the request (the part we care about) is in one netbuf */
@@ -68,10 +69,11 @@ http_server_netconn_serve(struct netconn *conn)
             * NETCONN_NOCOPY: our data is const static, so no need to copy it
     */
     netconn_write(conn, http_html_hdr, sizeof(http_html_hdr)-1, NETCONN_NOCOPY);
-    netconn_write(conn, http_index_hml, sizeof(http_index_hml)-1, NETCONN_NOCOPY);
-    //netconn_write(conn, prog_error, sizeof(prog_error)-1, NETCONN_NOCOPY);
-    //netconn_write(conn, http_index_last, sizeof(http_index_last)-1, NETCONN_NOCOPY);
-
+    if (res.res_err) {
+        netconn_write(conn, prog_error, strlen(prog_error), NETCONN_NOCOPY);
+    }else{
+        netconn_write(conn, http_index_hml, sizeof(http_index_hml)-1, NETCONN_NOCOPY);
+    }
   }
   /* Close the connection (server closes in HTTP) */
   netconn_close(conn);
@@ -86,6 +88,7 @@ http_server_netconn_serve(struct netconn *conn)
 }
 
 void http_server(void *pvParameters) {
+    printf("Start HTTP server\n");fflush(stdout);
     struct netconn *conn, *newconn;
     err_t err;
     conn = netconn_new(NETCONN_TCP);

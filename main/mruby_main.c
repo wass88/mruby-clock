@@ -57,6 +57,6 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(led_print, "led_print", 2048, NULL, 5, NULL, 1);
     xTaskCreatePinnedToCore(sync_sntp, "sync_sntp", 2048, NULL, 5, NULL, 0);
-    xTaskCreatePinnedToCore(mruby_task, "mruby_task", 8192, NULL, 5, NULL, 0);
-    xTaskCreatePinnedToCore(http_server, "http_server", 8192, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(http_server, "http_server", 4096, NULL, 5, NULL, 0);
+    xTaskCreatePinnedToCore(mruby_task, "mruby_task", 10000, NULL, 5, NULL, 0);
 }
