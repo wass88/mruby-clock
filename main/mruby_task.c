@@ -269,18 +269,18 @@ void b_text(int x, int y, char *str, int r, int g, int b, const struct bitmap_fo
   }
 }
 
-void b_scroll(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+void b_scroll(int t, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
   int len = iso2022_decode(str, tgt);
   int period = (len - 1) * font->Width + SIZE + 1;
-  b_text(32 - ((t / speed) % period), y, str, r, g, b, font);
+  b_text(32 - (t % period), y, str, r, g, b, font);
 }
 
-void b_show(int t, int speed, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
+void b_show(int t, int y, char *str, int r, int g, int b, const struct bitmap_font *font) {
   int len = iso2022_decode(str, tgt);
   if (font->Width * len <= SIZE) {
     b_text(0, y, str, r, g, b, font);
   } else {
-    b_scroll(t, speed, y, str, r, g, b, font);
+    b_scroll(t, y, str, r, g, b, font);
   }
 }
 
@@ -377,17 +377,17 @@ static mrb_value ledtext(mrb_state* mrb, mrb_value self) {
   return self;
 }
 static mrb_value ledscroll(mrb_state* mrb, mrb_value self) { 
-  mrb_int t, speed, y;
+  mrb_int t, y;
   char *s;
-  mrb_get_args(mrb, "iiiz", &t, &speed, &y, &s);
-  b_scroll(t, speed, y, s, p_r, p_g, p_b, p_font);
+  mrb_get_args(mrb, "iiz", &t, &y, &s);
+  b_scroll(t, y, s, p_r, p_g, p_b, p_font);
   return self;
 }
 static mrb_value ledshow(mrb_state* mrb, mrb_value self) { 
-  mrb_int t, speed, y;
+  mrb_int t, y;
   char *s;
-  mrb_get_args(mrb, "iiiz", &t, &speed, &y, &s);
-  b_show(t, speed, y, s, p_r, p_g, p_b, p_font);
+  mrb_get_args(mrb, "iiz", &t,&y, &s);
+  b_show(t, y, s, p_r, p_g, p_b, p_font);
   return self;
 }
 
@@ -439,8 +439,8 @@ void defines(mrb_state *mrb) {
   mrb_define_class_method(mrb, Led, "fill_circle", ledfill_circle, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "char", ledchar, MRB_ARGS_REQ(3));
   mrb_define_class_method(mrb, Led, "text", ledtext, MRB_ARGS_REQ(3));
-  mrb_define_class_method(mrb, Led, "scroll", ledscroll, MRB_ARGS_REQ(4));
-  mrb_define_class_method(mrb, Led, "show", ledshow, MRB_ARGS_REQ(4));
+  mrb_define_class_method(mrb, Led, "scroll", ledscroll, MRB_ARGS_REQ(3));
+  mrb_define_class_method(mrb, Led, "show", ledshow, MRB_ARGS_REQ(3));
 
   struct RClass *Time = mrb_define_module(mrb, "Time");
   mrb_define_class_method(mrb, Time, "update", time_update, MRB_ARGS_NONE());

@@ -39,12 +39,12 @@ Task::loop do
 
   Led::font 0
   Led::color 5, 0, 5
-  Led::show i, 2, 23, message
+  Led::show i.div(2), 23, message
   
   Led::font 5
   w = Task::cmd()
   Led::color 0, 5, 5
-  Led::show i, 2, 1, w 
+  Led::show i.div(2), 1, w 
 
   Led::flash
  
