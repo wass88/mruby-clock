@@ -13,6 +13,12 @@
 - 色は0 ~ 7
 ## Led.font f
 - フォントの数字 //TODO
+- 0: font_tom_thumb
+- 1: font_5x7
+- 2: font_6x9
+- 3: font_3x8
+- 4: font_k6x8
+- 5: font_k8x8
 ## Led.flash
 - (flushじゃね?) 画面に反映する
 ## Led.clear c
