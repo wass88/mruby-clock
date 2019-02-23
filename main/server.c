@@ -52,11 +52,11 @@ http_server_netconn_serve(struct netconn *conn)
 
   /* Read the data from the port, blocking if nothing yet there.
    We assume the request (the part we care about) is in one netbuf */
-  err = netconn_recv(conn, &inbuf);
+  err = netconn_recv(conn, &inbuf); // TODO: CALL Repeatedly
 
   if (err == ERR_OK) {
     netbuf_data(inbuf, (void**)&buf, &buflen);
-    printf("len = %d ,buffer = %s\n", buflen, buf);
+    printf("len = %d, buffer = %s\n", buflen, buf);
     exec_http(buflen, buf, &res);
     while(netbuf_next(inbuf) >= 0){
         printf("NEXT \n");
