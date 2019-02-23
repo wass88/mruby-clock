@@ -69,10 +69,35 @@ void get_time(time_t *now, struct tm *timeinfo) {
 
 }
 
+void set_unusual_time(void){
+    struct tm tm;
+    tm.tm_year = 2017 - 1900;
+    tm.tm_mon = 10;
+    tm.tm_mday = 10;
+    tm.tm_hour = 10;
+    tm.tm_min = 10;
+    tm.tm_sec = 10;
+    time_t t = mktime(&tm);
+
+
+    printf("Setting time: %s", asctime(&tm));
+
+    struct tm nowtm; time_t nowt;
+    get_time(&nowt, &nowtm);
+    printf("Setting time: FROM %s", asctime(&nowtm));
+    
+    struct timeval now = { .tv_sec = t };
+    settimeofday(&now, NULL);
+    get_time(&nowt, &nowtm);
+    printf("Now time: %s", asctime(&nowtm));
+    fflush(stdout);
+}
+
 void sync_sntp(void *pvParameter) {
     while (true) {
-        vTaskDelay(24 * 60 * 60 * 1000 / portTICK_PERIOD_MS);
+        vTaskDelay(60 * 1000 / portTICK_PERIOD_MS);
         ESP_LOGI(TAG, "Resync Time");
+        //set_unusual_time();
         sntp_stop();
         sntp_init();
     }
