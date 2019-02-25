@@ -427,6 +427,7 @@ void defines(mrb_state *mrb) {
   mrb_define_class_method(mrb, Led, "color", ledcolor, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Led, "font", ledfont, MRB_ARGS_REQ(1));
   mrb_define_class_method(mrb, Led, "flash", ledflash, MRB_ARGS_NONE());
+  mrb_define_class_method(mrb, Led, "flush", ledflash, MRB_ARGS_NONE());
   mrb_define_class_method(mrb, Led, "clear_buf", ledclear_buf, MRB_ARGS_REQ(2));
   mrb_define_class_method(mrb, Led, "copy_buf", ledcopy_buf, MRB_ARGS_REQ(2));
   mrb_define_class_method(mrb, Led, "clear", ledclear, MRB_ARGS_REQ(1));
