@@ -1,52 +1,72 @@
 i = 0
+infos = ["","KMC"]
+ws = [70, 124, 55, 110, 50, 80, 63, 101, 76, 90, 54, 98, 69, 90]
+week = (0...7).map{|i|
+[27, 36, 66, ws[2*i], ws[2*i+1], 27, 40, 66].map{|k|k.chr}.join("")}
+cmd = ""
 
-lines = []
-aline = [20, 10, 3, 8, 2, 3, 2, -1]
-def succ_line l
-    x0, y0, x1, y1, dx0, dy0, dx1, dy1 = l[0], l[1], l[2], l[3], l[4], l[5], l[6], l[7]
-    x0 += dx0; y0 += dy0; x1 += dx1; y1 += dy1
-    (dx0 *= -1; x0 = 0) if x0 < 0
-    (dy0 *= -1; y0 = 0) if y0 < 0
-    (dx1 *= -1; x1 = 0) if x1 < 0
-    (dy1 *= -1; y1 = 0) if y1 < 0
-    (dx0 *= -1; x0 = 31) if x0 > 31
-    (dy0 *= -1; y0 = 31) if y0 > 31
-    (dx1 *= -1; x1 = 31) if x1 > 31
-    (dy1 *= -1; y1 = 31) if y1 > 31
-    [x0, y0, x1, y1, dx0, dy0, dx1, dy1]
-end
-8.times {|t|
-  lines << aline
-  aline = succ_line(aline)
-}
-
-time_format = "%H:%M"
-message = "Welcome to KMC! Please Enjoy Yourself!"
 Task::loop do
-  Led::clear 0
-  Led::color 0, 1, 0 
-  lines.each {|l|
-    Led::line l[0], l[1], l[2], l[3]
-  }
-  lines.shift()
-  lines << succ_line(lines[-1])
+Led::clear 0
+Time::update
+
+if Task::updated?
+  w = Task.cmd
+  if w[0] == "$"
+    infos = w.split("$")
+  else
+    cmd = w
+  end
+end
 
 
-  Led::font 2
-  Led::color 7, 3, 3
-  Time::update
-  Led::text 1, 12, Time::str(time_format)
+Led::font 2
 
-  Led::font 0
-  Led::color 5, 0, 5
-  Led::show i.div(2), 23, message
-  
-  Led::font 5
-  w = Task::cmd()
-  Led::color 0, 5, 5
-  Led::show i.div(2), 1, w 
+Led::color 7, 3, 3
+if Time.num(5) % 2 == 0
+  Led::text 1, 11, Time::str("%H:%M")
+else
+  Led::text 1, 11, Time::str("%H %M")
+end
 
-  Led::flash
- 
-  i += 1
+
+Led::font 0
+n = (i.div(100)) % infos.size
+if n == 0 then
+Led::text 2, 3, Time::str("%m/%d")
+Led::font 5
+Led::text 23, 2, week[Time.num(2)]
+else
+s = infos[n]
+if s.size >= 8
+Led::show i.div(2), 3, s
+else
+Led::text 2, 3, s
+end
+end
+
+h = Time.num(3)
+if 6 <= h and h < 8; Led::color 7,4,3
+elsif 8 <= h and h < 16; Led::color 7,4,0
+elsif 16 <= h and h < 18; Led::color 7,1,0
+else; Led::color 2,2,7
+end
+Led::font 5
+Led::show i.div(2), 22, cmd
+#hv = (h * 32 / 24).to_i
+#Led::line 0, 31, hv, 31
+
+n = Time.num(5)
+if n == 0
+  n = 60
+end
+if n > 1
+  Led::line 1, 31, n.div(2), 31
+end
+if n % 2 == 1
+  Led::color 1,1,1
+  Led::set n.div(2)+1, 31
+end
+
+Led::flash
+i += 1
 end
