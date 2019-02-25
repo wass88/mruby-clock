@@ -88,8 +88,9 @@ void led_init(void) {
 
 time_t time_now_ = -1;
 struct tm time_info;
+struct timenum tnum;
 static mrb_value time_update(mrb_state* mrb, mrb_value self) { 
-  get_time(&time_now_, &time_info);
+  get_timenum(&time_now_, &time_info, &tnum);
   return self;
 }
 
@@ -110,12 +111,13 @@ static mrb_value time_num(mrb_state* mrb, mrb_value self) {
   int i;
   mrb_get_args(mrb, "i", &i);
   switch (i){
-    case 0: return mrb_fixnum_value(time_info.tm_year);
-    case 1: return mrb_fixnum_value(time_info.tm_mon);
-    case 2: return mrb_fixnum_value(time_info.tm_wday);
-    case 3: return mrb_fixnum_value(time_info.tm_hour);
-    case 4: return mrb_fixnum_value(time_info.tm_min);
-    case 5: return mrb_fixnum_value(time_info.tm_sec);
+    case 0: return mrb_fixnum_value(tnum.tm_year);
+    case 1: return mrb_fixnum_value(tnum.tm_mon);
+    case 2: return mrb_fixnum_value(tnum.tm_wday);
+    case 3: return mrb_fixnum_value(tnum.tm_hour);
+    case 4: return mrb_fixnum_value(tnum.tm_min);
+    case 5: return mrb_fixnum_value(tnum.tm_sec);
+    case 6: return mrb_fixnum_value(tnum.tm_usec);
   }
   char * msg = "Out of index";
   mrb_f_raise(mrb, mrb_str_new_cstr(mrb, msg));

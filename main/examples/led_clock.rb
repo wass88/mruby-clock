@@ -22,7 +22,7 @@ end
 Led::font 2
 
 Led::color 7, 3, 3
-if Time.num(5) % 2 == 0
+if Time.num(6) < 500000
   Led::text 1, 11, Time::str("%H:%M")
 else
   Led::text 1, 11, Time::str("%H %M")

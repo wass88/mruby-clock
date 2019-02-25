@@ -69,6 +69,22 @@ void get_time(time_t *now, struct tm *timeinfo) {
 
 }
 
+void get_timenum(time_t *now, struct tm *timeinfo, struct timenum *tnum){
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    localtime_r(&tv.tv_sec, timeinfo);
+    *now = tv.tv_sec;
+    tnum->tm_usec = tv.tv_usec;
+    tnum->tm_sec  = timeinfo->tm_sec;
+    tnum->tm_min  = timeinfo->tm_min;
+    tnum->tm_hour = timeinfo->tm_hour;
+    tnum->tm_mday = timeinfo->tm_mday;
+    tnum->tm_mon  = timeinfo->tm_mon;
+    tnum->tm_year = timeinfo->tm_year;
+    tnum->tm_wday = timeinfo->tm_wday;
+    tnum->tm_yday = timeinfo->tm_yday;
+}
+
 void set_unusual_time(void){
     struct tm tm;
     tm.tm_year = 2017 - 1900;
