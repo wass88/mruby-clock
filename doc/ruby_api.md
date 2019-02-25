@@ -19,8 +19,10 @@
 - 3: font_3x8
 - 4: font_k6x8
 - 5: font_k8x8
+## Led.flush
+- バッファを画面に反映する
 ## Led.flash
-- (flushじゃね?) 画面に反映する
+deprecated
 ## Led.clear c
 - メインバッファを色(c, c, c)で塗りつぶす
 ## Led.clear_buf c, b
@@ -61,7 +63,7 @@
 ## Time.str format
 - strftimeのフォーマットを指定して文字列で時間を得る。
 ## Time.num id
-- [年, 月, 週, 時, 分, 秒][id]を得る。
+- [年, 月, 週, 時, 分, 秒, マイクロ秒][id]を得る。
 
 # Task
 ## Task.loop do ループの本体 end
