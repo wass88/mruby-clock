@@ -1,0 +1,2 @@
+#define EXAMPLE_WIFI_SSID "SSID"
+#define EXAMPLE_WIFI_PASS "PASS"
