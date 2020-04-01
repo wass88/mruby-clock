@@ -10,12 +10,12 @@ Led::clear 0
 Time::update
 
 if Task::updated?
-  w = Task.cmd
-  if w[0] == "$"
-    infos = w.split("$")
-  else
-    cmd = w
-  end
+w = Task.cmd
+if w[0] == "$"
+  infos = w.split("$")
+else
+  cmd = w
+end
 end
 
 
@@ -23,9 +23,9 @@ Led::font 2
 
 Led::color 7, 3, 3
 if Time.num(6) < 500000
-  Led::text 1, 11, Time::str("%H:%M")
+Led::text 1, 11, Time::str("%H:%M")
 else
-  Led::text 1, 11, Time::str("%H %M")
+Led::text 1, 11, Time::str("%H %M")
 end
 
 
@@ -51,20 +51,20 @@ elsif 16 <= h and h < 18; Led::color 7,1,0
 else; Led::color 2,2,7
 end
 Led::font 5
-Led::show i.div(2), 22, cmd
+Led::show i.div(2), 21, cmd
 #hv = (h * 32 / 24).to_i
 #Led::line 0, 31, hv, 31
 
 n = Time.num(5)
 if n == 0
-  n = 60
+n = 60
 end
 if n > 1
-  Led::line 1, 31, n.div(2), 31
+Led::line 1, 31, n.div(2), 31
 end
 if n % 2 == 1
-  Led::color 1,1,1
-  Led::set n.div(2)+1, 31
+Led::color 1,1,1
+Led::set n.div(2)+1, 31
 end
 
 Led::flash
